@@ -51,7 +51,7 @@ public class VersionCheck {
     @SubscribeEvent
     public void onPostLogin(final PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getPlayer().hasPermissions(2) && !upToDate) {
-            plugin.getPlatform().executeAsyncLater(() ->
+            plugin.getExecutor().schedule(() ->
                             event.getPlayer().sendMessage(new TextComponent(ForgeMessageUtil.format("update_available", lastKnownVersion.getVersion()))
                                     .setStyle(CmdUtil.INFO_STYLE), Util.NIL_UUID),
                     3, TimeUnit.SECONDS);

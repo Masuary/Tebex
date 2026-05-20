@@ -1,6 +1,7 @@
 package com.github.xniter.tebexio.command;
 
 import com.github.xniter.tebexio.TebexForged;
+import com.github.xniter.tebexio.TebexShop;
 import com.github.xniter.tebexio.util.CmdUtil;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -28,37 +29,43 @@ public class SecretCmd implements Command<CommandSourceStack> {
             return 0;
         }
 
+        String shopName = StringArgumentType.getString(context, "shop");
         String secret = StringArgumentType.getString(context, "secret");
-        plugin.getPlatform().executeAsync(() -> {
-            String currentKey = plugin.getConfiguration().getServerKey();
-            BuyCraftAPI client = BuyCraftAPI.create(secret, plugin.getHttpClient());
 
+        plugin.getExecutor().submit(() -> {
+            BuyCraftAPI client = BuyCraftAPI.create(secret, plugin.getHttpClient());
+            ServerInformation information;
             try {
-                plugin.updateInformation(client);
+                information = client.getServerInformation().execute().body();
             } catch (IOException e) {
-                plugin.getLogger().error("Unable to verify secret", e);
-                ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("secret_does_not_work"))
-                        .setStyle(CmdUtil.ERROR_STYLE));
+                plugin.getLogger().error("Unable to verify secret for shop '" + shopName + "'", e);
+                ForgeMessageUtil.sendMessage(context.getSource(),
+                        new TextComponent(ForgeMessageUtil.format("secret_does_not_work")).setStyle(CmdUtil.ERROR_STYLE));
                 return;
             }
 
-            ServerInformation information = plugin.getServerInformation();
-            plugin.setApiClient(client);
-            plugin.getConfiguration().setServerKey(secret);
+            ServerInformation validatedInfo = information;
+            plugin.getServer().execute(() -> {
+                TebexShop existing = plugin.getShop(shopName);
+                boolean wasFresh = existing == null;
 
-            try {
-                plugin.saveConfiguration();
-            } catch (IOException e) {
-                ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("secret_cant_be_saved"))
-                        .setStyle(CmdUtil.ERROR_STYLE));
-            }
+                plugin.addOrUpdateShop(shopName, secret, client, validatedInfo);
 
-            ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("secret_success",
-                    information.getServer().getName(), information.getAccount().getName())).setStyle(CmdUtil.SUCCESS_STYLE));
+                try {
+                    plugin.saveShopProperties();
+                } catch (IOException e) {
+                    ForgeMessageUtil.sendMessage(context.getSource(),
+                            new TextComponent(ForgeMessageUtil.format("secret_cant_be_saved")).setStyle(CmdUtil.ERROR_STYLE));
+                }
 
-            boolean repeatChecks = currentKey.equals("INVALID");
-
-            plugin.getDuePlayerFetcher().run(repeatChecks);
+                if (validatedInfo != null) {
+                    String verb = wasFresh ? "added" : "updated";
+                    ForgeMessageUtil.sendMessage(context.getSource(),
+                            new TextComponent("Shop '" + shopName + "' " + verb + " - linked to "
+                                    + validatedInfo.getServer().getName()
+                                    + " for " + validatedInfo.getAccount().getName() + ".").setStyle(CmdUtil.SUCCESS_STYLE));
+                }
+            });
         });
         return 1;
     }

@@ -1,6 +1,7 @@
 package com.github.xniter.tebexio.command;
 
 import com.github.xniter.tebexio.TebexForged;
+import com.github.xniter.tebexio.TebexShop;
 import com.github.xniter.tebexio.util.CmdUtil;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -18,30 +19,42 @@ public class CouponCmd {
         this.plugin = plugin;
     }
 
-    public int create(CommandContext<CommandSourceStack> context) {
-        if (plugin.getApiClient() == null) {
-            ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("generic_api_operation_error"))
-                    .setStyle(CmdUtil.ERROR_STYLE));
-            return 0;
+    private TebexShop resolveShop(CommandContext<CommandSourceStack> context) {
+        String shopName = StringArgumentType.getString(context, "shop");
+        TebexShop shop = plugin.getShop(shopName);
+        if (shop == null || shop.getApiClient() == null) {
+            ForgeMessageUtil.sendMessage(context.getSource(),
+                    new TextComponent("No shop named '" + shopName + "' is configured.")
+                            .setStyle(CmdUtil.ERROR_STYLE));
+            return null;
         }
+        return shop;
+    }
+
+    public int create(CommandContext<CommandSourceStack> context) {
+        TebexShop shop = resolveShop(context);
+        if (shop == null) return 0;
 
         final Coupon coupon;
         try {
             coupon = CouponUtil.parseArguments(StringArgumentType.getString(context, "data").split(" "));
         } catch (Exception e) {
-            ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("coupon_creation_arg_parse_failure", e.getMessage()))
-                    .setStyle(CmdUtil.ERROR_STYLE));
+            ForgeMessageUtil.sendMessage(context.getSource(),
+                    new TextComponent(ForgeMessageUtil.format("coupon_creation_arg_parse_failure", e.getMessage()))
+                            .setStyle(CmdUtil.ERROR_STYLE));
             return 0;
         }
 
-        plugin.getPlatform().executeAsync(() -> {
+        plugin.getExecutor().submit(() -> {
             try {
-                plugin.getApiClient().createCoupon(coupon).execute();
-                ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("coupon_creation_success", coupon.getCode()))
-                        .setStyle(CmdUtil.SUCCESS_STYLE));
+                shop.getApiClient().createCoupon(coupon).execute();
+                ForgeMessageUtil.sendMessage(context.getSource(),
+                        new TextComponent(ForgeMessageUtil.format("coupon_creation_success", coupon.getCode()))
+                                .setStyle(CmdUtil.SUCCESS_STYLE));
             } catch (IOException e) {
-                ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("generic_api_operation_error"))
-                        .setStyle(CmdUtil.ERROR_STYLE));
+                ForgeMessageUtil.sendMessage(context.getSource(),
+                        new TextComponent(ForgeMessageUtil.format("generic_api_operation_error"))
+                                .setStyle(CmdUtil.ERROR_STYLE));
             }
         });
 
@@ -49,19 +62,19 @@ public class CouponCmd {
     }
 
     public int delete(CommandContext<CommandSourceStack> context) {
-        if (plugin.getApiClient() == null) {
-            ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("generic_api_operation_error"))
-                    .setStyle(CmdUtil.ERROR_STYLE));
-            return 0;
-        }
+        TebexShop shop = resolveShop(context);
+        if (shop == null) return 0;
 
         String code = StringArgumentType.getString(context, "code");
-        plugin.getPlatform().executeAsync(() -> {
+        plugin.getExecutor().submit(() -> {
             try {
-                plugin.getApiClient().deleteCoupon(code).execute();
-                ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(ForgeMessageUtil.format("coupon_deleted")).setStyle(CmdUtil.SUCCESS_STYLE));
+                shop.getApiClient().deleteCoupon(code).execute();
+                ForgeMessageUtil.sendMessage(context.getSource(),
+                        new TextComponent(ForgeMessageUtil.format("coupon_deleted"))
+                                .setStyle(CmdUtil.SUCCESS_STYLE));
             } catch (Exception e) {
-                ForgeMessageUtil.sendMessage(context.getSource(), new TextComponent(e.getMessage()).setStyle(CmdUtil.ERROR_STYLE));
+                ForgeMessageUtil.sendMessage(context.getSource(),
+                        new TextComponent(e.getMessage()).setStyle(CmdUtil.ERROR_STYLE));
             }
         });
 

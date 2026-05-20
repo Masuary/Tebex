@@ -34,14 +34,20 @@ public class ForgeBuycraftPlatform implements IBuycraftPlatform {
     }};
 
     private final TebexForged plugin;
+    private final TebexShop shop;
 
-    public ForgeBuycraftPlatform(TebexForged plugin) {
+    public ForgeBuycraftPlatform(TebexForged plugin, TebexShop shop) {
         this.plugin = plugin;
+        this.shop = shop;
+    }
+
+    public TebexShop getShop() {
+        return shop;
     }
 
     @Override
     public BuyCraftAPI getApiClient() {
-        return plugin.getApiClient();
+        return shop.getApiClient();
     }
 
     @Override
@@ -51,7 +57,7 @@ public class ForgeBuycraftPlatform implements IBuycraftPlatform {
 
     @Override
     public void dispatchCommand(String command) {
-        plugin.getServer().execute(() -> { //Ensure main
+        plugin.getServer().execute(() -> {
             try {
                 plugin.getServer().getCommands().getDispatcher().execute(command, plugin.getServer().createCommandSourceStack());
             } catch (CommandSyntaxException e) {
@@ -81,7 +87,7 @@ public class ForgeBuycraftPlatform implements IBuycraftPlatform {
     }
 
     private ServerPlayer getPlayer(QueuedPlayer player) {
-        if (player.getUuid() != null/* && plugin.getServer().isServerInOnlineMode()*/) {
+        if (player.getUuid() != null) {
             UUID uuid = UuidUtil.mojangUuidToJavaUuid(player.getUuid());
             return plugin.getServer().getPlayerList().getPlayers()
                     .stream()
@@ -108,17 +114,17 @@ public class ForgeBuycraftPlatform implements IBuycraftPlatform {
 
     @Override
     public void log(Level level, String s) {
-        plugin.getLogger().log(LOG_LEVEL_MAP.get(level), s);
+        plugin.getLogger().log(LOG_LEVEL_MAP.get(level), "[Tebex/" + shop.getName() + "] " + s);
     }
 
     @Override
     public void log(Level level, String s, Throwable throwable) {
-        plugin.getLogger().log(LOG_LEVEL_MAP.get(level), s, throwable);
+        plugin.getLogger().log(LOG_LEVEL_MAP.get(level), "[Tebex/" + shop.getName() + "] " + s, throwable);
     }
 
     @Override
     public CommandExecutor getExecutor() {
-        return plugin.getCommandExecutor();
+        return shop.getCommandExecutor();
     }
 
     @Override
@@ -133,6 +139,6 @@ public class ForgeBuycraftPlatform implements IBuycraftPlatform {
 
     @Override
     public ServerInformation getServerInformation() {
-        return plugin.getServerInformation();
+        return shop.getServerInformation();
     }
 }
