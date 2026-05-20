@@ -154,8 +154,8 @@ public class TebexForged {
                 VersionCheck check = new VersionCheck(this, pluginVersion, anyKey);
                 try {
                     check.verify();
-                } catch (IOException e) {
-                    getLogger().error("Can't check for updates", e);
+                } catch (Exception e) {
+                    getLogger().error("Can't check for updates - continuing without update notification", e);
                 }
                 MinecraftForge.EVENT_BUS.register(check);
             }

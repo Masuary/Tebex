@@ -38,10 +38,17 @@ public class VersionCheck {
             return;
         }
 
-        // Compare versions
         String latestVersionString = lastKnownVersion.getVersion();
         if (!latestVersionString.equals(pluginVersion)) {
-            upToDate = !isVersionGreater(pluginVersion, latestVersionString);
+            try {
+                upToDate = !isVersionGreater(pluginVersion, latestVersionString);
+            } catch (NumberFormatException e) {
+                plugin.getLogger().warn("Could not compare plugin version '" + pluginVersion
+                        + "' against latest '" + latestVersionString
+                        + "': non-numeric component. Skipping update check.");
+                upToDate = true;
+                return;
+            }
             if (!upToDate) {
                 plugin.getLogger().info(ForgeMessageUtil.format("update_available", lastKnownVersion.getVersion()));
             }
